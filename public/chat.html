@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat App</title>
+  <style>
+    /* Reset styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      overscroll-behavior: none; /* Prevent pull-to-refresh on mobile */
+    }
+
+    /* Chat container */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      background-color: #fff;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    /* Collapsed state - circle with just the avatar */
+    .chat-container.collapsed {
+      width: 60px;
+      height: 60px;
+      border-radius: 30px;
+      overflow: hidden;
+      margin: auto;
+    }
+
+    /* Chat header */
+    .chat-header {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      background-color: #4a7dff;
+      color: white;
+      z-index: 10;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .avatar-container {
+      position: relative;
+      cursor: pointer;
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid white;
+      background-color: #3667db; /* Fallback color while loading */
+    }
+
+    .header-info {
+      margin-left: 12px;
+      flex-grow: 1;
+      overflow: hidden;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .subtitle {
+      margin: 0;
+      font-size: 12px;
+      opacity: 0.8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Messages container */
+    .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      background-color: #f5f7fb;
+      display: flex;
+      flex-direction: column;
+      -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    }
+
+    .message {
+      max-width: 80%;
+      margin-bottom: 10px;
+      padding: 8px 12px;
+      border-radius: 16px;
+      position: relative;
+      word-break: break-word;
+      animation: message-appear 0.3s ease-out;
+    }
+
+    @keyframes message-appear {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background-color: #4a7dff;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.other {
+      align-self: flex-start;
+      background-color: #e5e5ea;
+      color: black;
+      border-bottom-left-radius: 4px;
+    }
+
+    .message-content {
+      margin-bottom: 4px;
+    }
+
+    .message-time {
+      font-size: 10px;
+      opacity: 0.7;
+      text-align: right;
+    }
+
+    /* Input container */
+    .input-container {
+      display: flex;
+      padding: 10px;
+      background-color: white;
+      border-top: 1px solid #eaeaea;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    .input-container input {
+      flex-grow: 1;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      padding: 8px 12px;
+      margin-right: 8px;
+      outline: none;
+      font-size: 14px;
+    }
+
+    .input-container button {
+      background-color: #4a7dff;
+      color: white;
+      border: none;
+      border-radius: 20px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+
+    .input-container button:hover {
+      background-color: #3a6ae6;
+    }
+
+    .input-container button:active {
+      background-color: #2d5bcc;
+    }
+
+    /* Hidden elements when collapsed */
+    .chat-container.collapsed .header-info,
+    .chat-container.collapsed .messages-container,
+    .chat-container.collapsed .input-container {
+      display: none;
+    }
+
+    /* Mobile responsive styles */
+    @media (max-width: 640px) {
+      .chat-container:not(.collapsed) {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+        margin: 0;
+        padding: 0;
+      }
+      
+      /* When keyboard is open on mobile */
+      .chat-container.keyboard-open:not(.collapsed) {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .chat-container.keyboard-open:not(.collapsed) .chat-header {
+        flex-shrink: 0;
+      }
+      
+      .chat-container.keyboard-open:not(.collapsed) .messages-container {
+        flex: 1;
+        min-height: 100px;
+      }
+      
+      .chat-container.keyboard-open:not(.collapsed) .input-container {
+        flex-shrink: 0;
+      }
+      
+      /* Collapsed state positioning on mobile */
+      .chat-container.collapsed {
+        position: fixed;
+        width: 60px;
+        height: 60px;
+        bottom: 20px;
+        right: 20px;
+        left: auto;
+        top: auto;
+      }
+
+      /* Adjust input for mobile */
+      .input-container input {
+        font-size: 16px; /* Prevents zoom on input focus in iOS */
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container" id="chat-container">
+    <!-- Chat header -->
+    <div class="chat-header" id="chat-header">
+      <div class="avatar-container" id="avatar-container">
+        <img src="https://via.placeholder.com/40" alt="Avatar" class="avatar" id="avatar-img" />
+      </div>
+      <div class="header-info">
+        <h3 class="title">Support Chat</h3>
+        <p class="subtitle">We typically reply within minutes</p>
+      </div>
+    </div>
+
+    <!-- Chat messages -->
+    <div class="messages-container" id="messages-container">
+      <!-- Messages will be populated here -->
+    </div>
+
+    <!-- Chat input -->
+    <div class="input-container">
+      <input
+        id="message-input"
+        type="text"
+        placeholder="Type a message..."
+      />
+      <button id="send-button">Send</button>
+    </div>
+  </div>
+
+  <script>
+    // Simple chat functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const chatContainer = document.getElementById('chat-container');
+      const chatHeader = document.getElementById('chat-header');
+      const avatarContainer = document.getElementById('avatar-container');
+      const avatarImg = document.getElementById('avatar-img');
+      const messagesContainer = document.getElementById('messages-container');
+      const messageInput = document.getElementById('message-input');
+      const sendButton = document.getElementById('send-button');
+      
+      // Initial messages
+      const initialMessages = [
+        {
+          text: 'Hello there!',
+          sender: 'other',
+          time: new Date(Date.now() - 60000) // 1 minute ago
+        },
+        {
+          text: 'How can I help you today?',
+          sender: 'other',
+          time: new Date() // now
+        }
+      ];
+      
+      // Check for URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const initialCollapsed = urlParams.has('collapsed') && urlParams.get('collapsed') === 'true';
+      
+      // Set initial collapsed state if specified
+      if (initialCollapsed) {
+        chatContainer.classList.add('collapsed');
+      }
+
+      // Preload avatar image for smoother transitions
+      function preloadAvatar() {
+        const img = new Image();
+        img.src = avatarImg.src;
+        img.onload = function() {
+          avatarImg.style.backgroundImage = `url(${img.src})`;
+        };
+      }
+      
+      // Toggle collapsed state
+      function toggleCollapsed() {
+        const isCollapsed = chatContainer.classList.toggle('collapsed');
+        
+        // Notify parent window about collapse state change
+        window.parent.postMessage({
+          type: 'toggle-collapse',
+          collapsed: isCollapsed
+        }, '*');
+        
+        // Update the URL without reloading
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('collapsed', isCollapsed ? 'true' : 'false');
+        window.history.replaceState({}, '', newUrl);
+        
+        // If expanding, scroll messages to bottom
+        if (!isCollapsed) {
+          setTimeout(scrollToBottom, 50);
+        }
+      }
+
+      // Format time
+      function formatTime(date) {
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+
+      // Scroll to bottom of messages
+      function scrollToBottom() {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+      
+      // Add a message to the UI
+      function addMessageToUI(text, sender, time) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}`;
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        contentDiv.textContent = text;
+
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'message-time';
+        timeDiv.textContent = formatTime(time);
+
+        messageDiv.appendChild(contentDiv);
+        messageDiv.appendChild(timeDiv);
+        messagesContainer.appendChild(messageDiv);
+        
+        scrollToBottom();
+      }
+
+      // Send a message
+      function sendMessage() {
+        const text = messageInput.value.trim();
+        if (!text) return;
+
+        // Add user message to UI
+        addMessageToUI(text, 'user', new Date());
+
+        // Clear input
+        messageInput.value = '';
+
+        // Simulate response after short delay
+        setTimeout(() => {
+          addMessageToUI('Thanks for your message! Our team will get back to you soon.', 'other', new Date());
+        }, 1000);
+      }
+
+      // Handle keyboard events for mobile
+      function checkKeyboardStatus() {
+        // Use viewport height as an indicator of keyboard status
+        const windowHeight = window.innerHeight;
+        const threshold = window.screen.height * 0.75;
+        const isKeyboardOpen = windowHeight < threshold;
+
+        if (isKeyboardOpen) {
+          chatContainer.classList.add('keyboard-open');
+          // Notify parent window about keyboard status
+          window.parent.postMessage({
+            type: 'keyboard-status',
+            isOpen: true
+          }, '*');
+        } else {
+          chatContainer.classList.remove('keyboard-open');
+          window.parent.postMessage({
+            type: 'keyboard-status',
+            isOpen: false
+          }, '*');
+        }
+      }
+
+      // Listen for window messages from parent frame
+      window.addEventListener('message', function(event) {
+        if (!event.data || typeof event.data !== 'object') return;
+        
+        if (event.data.type === 'expanded') {
+          chatContainer.classList.remove('collapsed');
+          setTimeout(scrollToBottom, 50);
+        } else if (event.data.type === 'collapsed') {
+          chatContainer.classList.add('collapsed');
+        }
+      });
+
+      // Event listeners
+      avatarContainer.addEventListener('click', function(event) {
+        event.stopPropagation();
+        toggleCollapsed();
+      });
+      
+      chatHeader.addEventListener('click', function() {
+        if (chatContainer.classList.contains('collapsed')) {
+          toggleCollapsed();
+        }
+      });
+      
+      sendButton.addEventListener('click', sendMessage);
+      
+      messageInput.addEventListener('keyup', function(event) {
+        if (event.key === 'Enter') {
+          sendMessage();
+        }
+      });
+
+      // Listen for window resize which can indicate keyboard opening/closing
+      window.addEventListener('resize', checkKeyboardStatus);
+      
+      // Focus trap for accessibility
+      function handleTabKey(e) {
+        if (chatContainer.classList.contains('collapsed')) return;
+        
+        if (e.key === 'Tab') {
+          const focusableElements = chatContainer.querySelectorAll('button, input, [tabindex]:not([tabindex="-1"])');
+          const firstElement = focusableElements[0];
+          const lastElement = focusableElements[focusableElements.length - 1];
+          
+          if (e.shiftKey && document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          } else if (!e.shiftKey && document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+      
+      document.addEventListener('keydown', handleTabKey);
+
+      // Initialize
+      preloadAvatar();
+      
+      // Populate initial messages
+      initialMessages.forEach(msg => {
+        addMessageToUI(msg.text, msg.sender, msg.time);
+      });
+      
+      // Scroll to bottom on initial load
+      scrollToBottom();
+    });
+  </script>
+</body>
+</html>

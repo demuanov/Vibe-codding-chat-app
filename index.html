@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + Vue + TS</title>
+    <style>
+      /* Styles for the chat iframe */
+      .chat-iframe-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        border: none;
+        transition: all 0.3s ease;
+      }
+
+      /* Default state: expanded */
+      .chat-iframe {
+        width: 320px;
+        height: 520px;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        border: none;
+        background-color: #fff;
+        transition: all 0.3s ease;
+      }
+
+      /* Collapsed state */
+      .chat-iframe.collapsed {
+        width: 60px;
+        height: 60px;
+        border-radius: 30px;
+      }
+
+      /* Handle mobile responsiveness */
+      @media (max-width: 640px) {
+        .chat-iframe:not(.collapsed) {
+          width: 100%;
+          height: 100%;
+          position: fixed;
+          bottom: 0;
+          right: 0;
+          left: 0;
+          top: 0;
+          border-radius: 0;
+        }
+        
+        /* Keep the collapsed state in the corner */
+        .chat-iframe.collapsed {
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          left: auto;
+          top: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+
+    <!-- Chat iframe container -->
+    <div class="chat-iframe-container">
+      <iframe 
+        id="chat-iframe"
+        src="/chat.html" 
+        class="chat-iframe"
+        frameborder="0" 
+        allow="microphone"
+        title="Chat App">
+      </iframe>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const chatIframe = document.getElementById('chat-iframe');
+        let isCollapsed = false;
+        let isKeyboardOpen = false;
+        
+        // Handle messages from iframe
+        window.addEventListener('message', function(event) {
+          if (!event.data || typeof event.data !== 'object') return;
+          
+          // Handle toggle collapse message
+          if (event.data.type === 'toggle-collapse') {
+            isCollapsed = event.data.collapsed;
+            if (isCollapsed) {
+              chatIframe.classList.add('collapsed');
+            } else {
+              chatIframe.classList.remove('collapsed');
+            }
+          }
+          
+          // Handle keyboard status
+          if (event.data.type === 'keyboard-status') {
+            isKeyboardOpen = event.data.isOpen;
+            handleResize();
+          }
+        });
+        
+        // Check mobile/desktop state on resize
+        function handleResize() {
+          if (isCollapsed) {
+            // Apply collapsed state
+            chatIframe.style.width = '60px';
+            chatIframe.style.height = '60px';
+            return;
+          }
+          
+          if (window.innerWidth <= 640) {
+            // On mobile devices
+            if (isKeyboardOpen) {
+              // Keyboard is open
+              chatIframe.style.height = window.innerHeight + 'px';
+              chatIframe.style.width = '100%';
+              
+              // Ensure the iframe takes the full screen
+              chatIframe.style.position = 'fixed';
+              chatIframe.style.top = '0';
+              chatIframe.style.left = '0';
+              chatIframe.style.right = '0';
+              chatIframe.style.bottom = '0';
+              chatIframe.style.borderRadius = '0';
+            } else {
+              // Keyboard is closed but still on mobile
+              chatIframe.style.height = '100%';
+              chatIframe.style.width = '100%';
+              chatIframe.style.position = 'fixed';
+              chatIframe.style.top = '0';
+              chatIframe.style.left = '0';
+              chatIframe.style.right = '0';
+              chatIframe.style.bottom = '0';
+              chatIframe.style.borderRadius = '0';
+            }
+          } else {
+            // On desktop
+            chatIframe.style.height = '520px';
+            chatIframe.style.width = '320px';
+            chatIframe.style.position = 'static';
+            chatIframe.style.borderRadius = '16px';
+          }
+        }
+
+        // Add resize listener
+        window.addEventListener('resize', handleResize);
+        
+        // Toggle collapsed state from parent
+        window.toggleChat = function() {
+          isCollapsed = !isCollapsed;
+          if (isCollapsed) {
+            chatIframe.classList.add('collapsed');
+          } else {
+            chatIframe.classList.remove('collapsed');
+          }
+          
+          // Notify iframe about state change
+          chatIframe.contentWindow.postMessage({
+            type: isCollapsed ? 'collapsed' : 'expanded'
+          }, '*');
+          
+          // Update dimensions
+          handleResize();
+        };
+        
+        // Initial check
+        handleResize();
+      });
+    </script>
+  </body>
+</html>
