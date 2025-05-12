@@ -56,6 +56,9 @@
         }
       }
     </style>
+    <!-- Preload important resources -->
+    <link rel="preload" href="/widget.js" as="script" />
+    <link rel="preload" href="/chat.html" as="document" />
   </head>
   <body>
     <div id="app"></div>
@@ -65,18 +68,22 @@
     <div class="chat-iframe-container">
       <iframe 
         id="chat-iframe"
-        src="/chat.html" 
-        class="chat-iframe"
+        src="/chat.html?collapsed=true" 
+        class="chat-iframe collapsed"
         frameborder="0" 
         allow="microphone"
+        loading="lazy"
         title="Chat App">
       </iframe>
     </div>
 
+    <!-- Load shared utilities first -->
+    <script src="/widget.js" defer></script>
+    
     <script>
       document.addEventListener('DOMContentLoaded', function() {
         const chatIframe = document.getElementById('chat-iframe');
-        let isCollapsed = false;
+        let isCollapsed = true; // Start collapsed by default
         let isKeyboardOpen = false;
         
         // Handle messages from iframe
@@ -86,11 +93,7 @@
           // Handle toggle collapse message
           if (event.data.type === 'toggle-collapse') {
             isCollapsed = event.data.collapsed;
-            if (isCollapsed) {
-              chatIframe.classList.add('collapsed');
-            } else {
-              chatIframe.classList.remove('collapsed');
-            }
+            updateChatIframeState();
           }
           
           // Handle keyboard status
@@ -99,6 +102,16 @@
             handleResize();
           }
         });
+        
+        // Update chat iframe class based on state
+        function updateChatIframeState() {
+          if (isCollapsed) {
+            chatIframe.classList.add('collapsed');
+          } else {
+            chatIframe.classList.remove('collapsed');
+          }
+          handleResize();
+        }
         
         // Check mobile/desktop state on resize
         function handleResize() {
@@ -143,25 +156,29 @@
           }
         }
 
-        // Add resize listener
-        window.addEventListener('resize', handleResize);
+        // Debounce function to limit resize handler calls
+        function debounce(func, wait) {
+          let timeout;
+          return function() {
+            const context = this;
+            const args = arguments;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+          };
+        }
+
+        // Add resize listener with debouncing
+        window.addEventListener('resize', debounce(handleResize, 150));
         
         // Toggle collapsed state from parent
         window.toggleChat = function() {
           isCollapsed = !isCollapsed;
-          if (isCollapsed) {
-            chatIframe.classList.add('collapsed');
-          } else {
-            chatIframe.classList.remove('collapsed');
-          }
+          updateChatIframeState();
           
           // Notify iframe about state change
           chatIframe.contentWindow.postMessage({
             type: isCollapsed ? 'collapsed' : 'expanded'
           }, '*');
-          
-          // Update dimensions
-          handleResize();
         };
         
         // Initial check

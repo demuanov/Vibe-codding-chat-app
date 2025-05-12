@@ -78,8 +78,11 @@ const toggleCollapsed = () => {
   emit("toggle-collapsed", isCollapsed.value);
 };
 
-// Format time
+// Format time - import from window.ChatUtils when available (for non-SSR contexts)
 const formatTime = (date: Date) => {
+  if (typeof window !== "undefined" && window.ChatUtils) {
+    return window.ChatUtils.formatTime(date);
+  }
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
@@ -92,7 +95,12 @@ const scrollToBottom = () => {
 
 // Handle keyboard events for mobile
 const checkKeyboardStatus = () => {
-  // Use viewport height as an indicator of keyboard status
+  if (typeof window !== "undefined" && window.ChatUtils) {
+    isKeyboardOpen.value = window.ChatUtils.isKeyboardOpen();
+    return;
+  }
+
+  // Fallback implementation if shared utilities aren't available
   const windowHeight = window.innerHeight;
   const threshold = window.screen.height * 0.75;
   isKeyboardOpen.value = windowHeight < threshold;
@@ -348,3 +356,18 @@ onUnmounted(() => {
   }
 }
 </style>
+
+<script lang="ts">
+// Add TypeScript declaration for window.ChatUtils
+declare global {
+  interface Window {
+    ChatUtils?: {
+      formatTime: (date: Date) => string;
+      isKeyboardOpen: () => boolean;
+      sendMessageToParent: (type: string, data?: any) => void;
+      getUrlParams: () => URLSearchParams;
+      updateUrlParam: (key: string, value: string) => void;
+    };
+  }
+}
+</script>

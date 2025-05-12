@@ -268,6 +268,9 @@
     </div>
   </div>
 
+  <!-- Load shared utilities first -->
+  <script src="/widget.js"></script>
+  
   <script>
     // Simple chat functionality
     document.addEventListener('DOMContentLoaded', function() {
@@ -293,8 +296,8 @@
         }
       ];
       
-      // Check for URL parameters
-      const urlParams = new URLSearchParams(window.location.search);
+      // Check for URL parameters using shared utility
+      const urlParams = ChatUtils.getUrlParams();
       const initialCollapsed = urlParams.has('collapsed') && urlParams.get('collapsed') === 'true';
       
       // Set initial collapsed state if specified
@@ -315,26 +318,16 @@
       function toggleCollapsed() {
         const isCollapsed = chatContainer.classList.toggle('collapsed');
         
-        // Notify parent window about collapse state change
-        window.parent.postMessage({
-          type: 'toggle-collapse',
-          collapsed: isCollapsed
-        }, '*');
+        // Notify parent window about collapse state change using shared utility
+        ChatUtils.sendMessageToParent('toggle-collapse', { collapsed: isCollapsed });
         
-        // Update the URL without reloading
-        const newUrl = new URL(window.location);
-        newUrl.searchParams.set('collapsed', isCollapsed ? 'true' : 'false');
-        window.history.replaceState({}, '', newUrl);
+        // Update the URL without reloading using shared utility
+        ChatUtils.updateUrlParam('collapsed', isCollapsed ? 'true' : 'false');
         
         // If expanding, scroll messages to bottom
         if (!isCollapsed) {
           setTimeout(scrollToBottom, 50);
         }
-      }
-
-      // Format time
-      function formatTime(date) {
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       }
 
       // Scroll to bottom of messages
@@ -353,7 +346,7 @@
 
         const timeDiv = document.createElement('div');
         timeDiv.className = 'message-time';
-        timeDiv.textContent = formatTime(time);
+        timeDiv.textContent = ChatUtils.formatTime(time);
 
         messageDiv.appendChild(contentDiv);
         messageDiv.appendChild(timeDiv);
@@ -379,26 +372,17 @@
         }, 1000);
       }
 
-      // Handle keyboard events for mobile
+      // Handle keyboard events for mobile using shared utility
       function checkKeyboardStatus() {
-        // Use viewport height as an indicator of keyboard status
-        const windowHeight = window.innerHeight;
-        const threshold = window.screen.height * 0.75;
-        const isKeyboardOpen = windowHeight < threshold;
+        const isKeyboardActive = ChatUtils.isKeyboardOpen();
 
-        if (isKeyboardOpen) {
+        if (isKeyboardActive) {
           chatContainer.classList.add('keyboard-open');
           // Notify parent window about keyboard status
-          window.parent.postMessage({
-            type: 'keyboard-status',
-            isOpen: true
-          }, '*');
+          ChatUtils.sendMessageToParent('keyboard-status', { isOpen: true });
         } else {
           chatContainer.classList.remove('keyboard-open');
-          window.parent.postMessage({
-            type: 'keyboard-status',
-            isOpen: false
-          }, '*');
+          ChatUtils.sendMessageToParent('keyboard-status', { isOpen: false });
         }
       }
 
